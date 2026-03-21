@@ -17,6 +17,7 @@ dependencies:
   shared_preferences: ^2.2.3
   path_provider: ^2.1.3
   path: ^1.9.0
+  file_picker: ^8.0.6
 
 dev_dependencies:
   flutter_test:
@@ -29,3 +30,4 @@ flutter:
   uses-material-design: true
   assets:
     - assets/xterm/
+    - assets/monaco/
