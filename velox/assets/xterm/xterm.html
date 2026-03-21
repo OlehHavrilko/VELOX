@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<link rel="stylesheet" href="xterm.css">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 100%; height: 100%; background: #0d1117; overflow: hidden; }
+  #terminal { width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<div id="terminal"></div>
+<script src="xterm.js"></script>
+<script>
+  const term = new Terminal({
+    theme: {
+      background: '#0d1117',
+      foreground: '#cdd9e5',
+      cursor: '#00e5ff',
+      black: '#1e2d3d',
+      red: '#ff5555',
+      green: '#50fa7b',
+      yellow: '#f1fa8c',
+      blue: '#6272a4',
+      magenta: '#ff79c6',
+      cyan: '#00e5ff',
+      white: '#f8f8f2',
+    },
+    fontFamily: 'monospace',
+    fontSize: 13,
+    cursorBlink: true,
+    allowTransparency: false,
+    scrollback: 1000,
+  });
+
+  term.open(document.getElementById('terminal'));
+  term.focus();
+
+  // Send input to Flutter
+  term.onData(data => {
+    window.flutter_inappwebview
+      ? window.flutter_inappwebview.callHandler('onInput', data)
+      : window.VeloxChannel && window.VeloxChannel.postMessage(JSON.stringify({ type: 'input', data }));
+  });
+
+  // Receive output from Flutter
+  window.writeToTerminal = function(text) {
+    term.write(text);
+  };
+
+  // Handle resize
+  window.resizeTerminal = function(cols, rows) {
+    term.resize(cols, rows);
+  };
+
+  // Notify Flutter ready
+  setTimeout(() => {
+    window.flutter_inappwebview
+      ? window.flutter_inappwebview.callHandler('onReady')
+      : window.VeloxChannel && window.VeloxChannel.postMessage(JSON.stringify({ type: 'ready' }));
+  }, 100);
+</script>
+</body>
+</html>
