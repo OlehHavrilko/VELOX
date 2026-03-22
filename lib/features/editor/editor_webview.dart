@@ -18,11 +18,24 @@ class _EditorWebViewState extends ConsumerState<EditorWebView> {
   @override
   void initState() {
     super.initState();
+    _initWebView();
+  }
+
+  void _initWebView() {
     _controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..setBackgroundColor(const Color(0xFF0D1117))
       ..addJavaScriptChannel('VeloxEditor', onMessageReceived: _onMessage)
       ..loadFlutterAsset('assets/monaco/monaco.html');
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    ref.listenManual(editorProvider, (prev, next) {
+      if (!_ready) return;
+      if (prev?.filePath != next.filePath) _loadCurrentFile();
+    });
   }
 
   void _onMessage(JavaScriptMessage msg) {
@@ -47,27 +60,14 @@ class _EditorWebViewState extends ConsumerState<EditorWebView> {
     final escaped = state.content
         .replaceAll('\\', '\\\\')
         .replaceAll('`', '\\`')
-        .replaceAll('\$', '\\\$');
+        .replaceAll('\$', '\\$');
     _controller.runJavaScript(
       "setContent(`$escaped`, '${state.language}')",
     );
   }
 
   @override
-  void didUpdateWidget(EditorWebView oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (_ready) _loadCurrentFile();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    // Listen for file changes and update Monaco
-    ref.listen(editorProvider, (prev, next) {
-      if (!_ready) return;
-      if (prev?.filePath != next.filePath) {
-        _loadCurrentFile();
-      }
-    });
     return WebViewWidget(controller: _controller);
   }
 }

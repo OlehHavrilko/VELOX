@@ -53,12 +53,9 @@ class _TerminalWebViewState extends ConsumerState<TerminalWebView> {
 
     notifier.outputStream.listen((text) {
       if (_webViewReady) {
-        final escaped = text
-            .replaceAll('\\', '\\\\')
-            .replaceAll("'", "\\'")
-            .replaceAll('\r', '\\r')
-            .replaceAll('\n', '\\n');
-        _controller.runJavaScript("writeToTerminal('$escaped')");
+        final bytes = utf8.encode(text);
+        final b64 = base64Encode(bytes);
+        _controller.runJavaScript("writeBase64('$b64')");
       }
     });
   }
