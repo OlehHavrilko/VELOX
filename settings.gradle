@@ -1,0 +1,7 @@
+include ':app'
+
+def localPropertiesFile = new File(rootProject.projectDir, "local.properties")
+def properties = new Properties()
+localPropertiesFile.withInputStream { properties.load(it) }
+def flutterSdkPath = properties.getProperty("flutter.sdk")
+apply from: "$flutterSdkPath/packages/flutter_tools/gradle/app_plugin_loader.gradle"

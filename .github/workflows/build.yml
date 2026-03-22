@@ -21,6 +21,9 @@ jobs:
           flutter-version: '3.22.0'
           channel: 'stable'
 
+      - name: Create local.properties
+        run: echo "flutter.sdk=$FLUTTER_ROOT" > android/local.properties
+
       - name: Download xterm.js assets
         run: |
           mkdir -p assets/xterm
