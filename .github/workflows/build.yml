@@ -21,8 +21,17 @@ jobs:
           flutter-version: '3.22.0'
           channel: 'stable'
 
-      - name: Create local.properties
-        run: echo "flutter.sdk=$FLUTTER_ROOT" > android/local.properties
+      - name: Generate Android scaffold
+        run: |
+          flutter create --org com.velox --project-name velox /tmp/scaffold
+          cp /tmp/scaffold/android/settings.gradle android/settings.gradle
+          cp /tmp/scaffold/android/build.gradle android/build.gradle
+          cp /tmp/scaffold/android/gradle.properties android/gradle.properties
+          cp /tmp/scaffold/android/app/build.gradle android/app/build.gradle
+          cp -r /tmp/scaffold/android/gradle android/
+          echo "flutter.sdk=$FLUTTER_ROOT" > android/local.properties
+          sed -i 's/com.example.velox/com.velox.app/g' android/app/build.gradle
+          sed -i 's/minSdkVersion 16/minSdkVersion 21/' android/app/build.gradle
 
       - name: Download xterm.js assets
         run: |
