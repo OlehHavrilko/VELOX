@@ -1,0 +1,49 @@
+name: Build APK
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.22.0'
+          channel: 'stable'
+
+      - name: Generate Android scaffold
+        run: |
+          flutter create --org com.velox --project-name velox /tmp/scaffold
+          cp /tmp/scaffold/android/settings.gradle android/settings.gradle
+          cp /tmp/scaffold/android/build.gradle android/build.gradle
+          cp /tmp/scaffold/android/gradle.properties android/gradle.properties
+          cp /tmp/scaffold/android/app/build.gradle android/app/build.gradle
+          cp -r /tmp/scaffold/android/gradle android/
+          echo "flutter.sdk=$FLUTTER_ROOT" > android/local.properties
+          sed -i 's/com.example.velox/com.velox.app/g' android/app/build.gradle
+          sed -i 's/minSdkVersion 16/minSdkVersion 21/' android/app/build.gradle
+
+      - name: Download xterm.js assets
+        run: |
+          mkdir -p assets/xterm
+          curl -L "https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.js" -o assets/xterm/xterm.js
+          curl -L "https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css" -o assets/xterm/xterm.css
+
+      - run: flutter pub get
+
+      - run: flutter build apk --release --target-platform android-arm64
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: velox-release
+          path: build/app/outputs/flutter-apk/app-release.apk
