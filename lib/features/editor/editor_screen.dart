@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
 import 'editor_provider.dart';
 import 'editor_webview.dart';
-import '../files/files_provider.dart';
 
 class EditorScreen extends ConsumerWidget {
   const EditorScreen({super.key});
@@ -49,7 +48,8 @@ class EditorScreen extends ConsumerWidget {
           ),
           const VerticalDivider(width: 16, color: Colors.white12),
           IconButton(
-            icon: const Icon(Icons.folder_open, size: 18, color: Colors.white70),
+            icon:
+                const Icon(Icons.folder_open, size: 18, color: Colors.white70),
             onPressed: () => _openFile(context, ref),
             tooltip: 'Open File',
           ),
@@ -77,10 +77,13 @@ class EditorScreen extends ConsumerWidget {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 12),
               decoration: BoxDecoration(
-                color: isActive ? const Color(0xFF0D1117) : const Color(0xFF1C2128),
+                color: isActive
+                    ? const Color(0xFF0D1117)
+                    : const Color(0xFF1C2128),
                 border: Border(
                   top: BorderSide(
-                    color: isActive ? const Color(0xFF58A6FF) : Colors.transparent,
+                    color:
+                        isActive ? const Color(0xFF58A6FF) : Colors.transparent,
                     width: 2,
                   ),
                 ),
@@ -97,7 +100,8 @@ class EditorScreen extends ConsumerWidget {
                   ),
                   const SizedBox(width: 8),
                   GestureDetector(
-                    onTap: () => ref.read(editorProvider.notifier).closeFile(path),
+                    onTap: () =>
+                        ref.read(editorProvider.notifier).closeFile(path),
                     child: Icon(
                       Icons.close,
                       size: 14,
@@ -166,7 +170,9 @@ class EditorScreen extends ConsumerWidget {
   Future<void> _openFile(BuildContext context, WidgetRef ref) async {
     final result = await FilePicker.platform.pickFiles();
     if (result != null && result.files.single.path != null) {
-      await ref.read(editorProvider.notifier).openFile(result.files.single.path!);
+      await ref
+          .read(editorProvider.notifier)
+          .openFile(result.files.single.path!);
     }
   }
 }

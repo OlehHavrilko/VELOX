@@ -35,8 +35,10 @@ class FilesScreen extends ConsumerWidget {
       child: Row(
         children: [
           IconButton(
-            icon: const Icon(Icons.folder_special, size: 18, color: Color(0xFF58A6FF)),
-            onPressed: () => ref.read(filesProvider.notifier).pickRootDirectory(),
+            icon: const Icon(Icons.folder_special,
+                size: 18, color: Color(0xFF58A6FF)),
+            onPressed: () =>
+                ref.read(filesProvider.notifier).pickRootDirectory(),
             tooltip: 'Open Folder',
           ),
           IconButton(
@@ -47,7 +49,8 @@ class FilesScreen extends ConsumerWidget {
           const Spacer(),
           if (state.rootPath != null)
             IconButton(
-              icon: const Icon(Icons.arrow_upward, size: 18, color: Colors.white70),
+              icon: const Icon(Icons.arrow_upward,
+                  size: 18, color: Colors.white70),
               onPressed: () => ref.read(filesProvider.notifier).navigateUp(),
               tooltip: 'Go Up',
             ),
@@ -60,7 +63,6 @@ class FilesScreen extends ConsumerWidget {
     if (state.rootPath == null) return const SizedBox.shrink();
 
     final parts = state.rootPath!.split('/');
-    String path = '';
     return Container(
       height: 32,
       color: const Color(0xFF161B22),
@@ -69,19 +71,23 @@ class FilesScreen extends ConsumerWidget {
         scrollDirection: Axis.horizontal,
         itemCount: parts.length,
         itemBuilder: (context, index) {
-          path += (path.isEmpty ? '' : '/') + parts[index];
+          final currentPath = '/' + parts.sublist(1, index + 1).join('/');
           return Row(
             children: [
               if (index > 0)
-                const Icon(Icons.chevron_right, size: 16, color: Colors.white38),
+                const Icon(Icons.chevron_right,
+                    size: 16, color: Colors.white38),
               InkWell(
-                onTap: () => ref.read(filesProvider.notifier).loadDirectory(path),
+                onTap: () =>
+                    ref.read(filesProvider.notifier).loadDirectory(currentPath),
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 4),
                   child: Text(
                     parts[index],
                     style: TextStyle(
-                      color: index == parts.length - 1 ? Colors.white : Colors.white54,
+                      color: index == parts.length - 1
+                          ? Colors.white
+                          : Colors.white54,
                       fontSize: 12,
                     ),
                   ),
@@ -112,7 +118,8 @@ class FilesScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 24),
           ElevatedButton.icon(
-            onPressed: () => ref.read(filesProvider.notifier).pickRootDirectory(),
+            onPressed: () =>
+                ref.read(filesProvider.notifier).pickRootDirectory(),
             icon: const Icon(Icons.folder_open),
             label: const Text('Open Folder'),
             style: ElevatedButton.styleFrom(
@@ -150,9 +157,7 @@ class FilesScreen extends ConsumerWidget {
             child: Row(
               children: [
                 Icon(
-                  item.isDirectory
-                      ? Icons.folder
-                      : _getFileIcon(item.name),
+                  item.isDirectory ? Icons.folder : _getFileIcon(item.name),
                   size: 16,
                   color: item.isDirectory
                       ? const Color(0xFF58A6FF)
@@ -179,36 +184,69 @@ class FilesScreen extends ConsumerWidget {
 
   IconData _getFileIcon(String name) {
     final ext = name.split('.').last.toLowerCase();
-    return switch (ext) {
-      'dart' => Icons.code,
-      'kt' | 'kts' => Icons.code,
-      'py' => Icons.code,
-      'js' | 'ts' => Icons.javascript,
-      'json' => Icons.data_object,
-      'yaml' | 'yml' => Icons.settings,
-      'md' => Icons.description,
-      'html' | 'css' => Icons.web,
-      'xml' => Icons.code,
-      'png' | 'jpg' | 'jpeg' | 'gif' | 'svg' => Icons.image,
-      'txt' => Icons.text_snippet,
-      _ => Icons.insert_drive_file,
-    };
+    switch (ext) {
+      case 'dart':
+        return Icons.code;
+      case 'kt':
+      case 'kts':
+        return Icons.code;
+      case 'py':
+        return Icons.code;
+      case 'js':
+      case 'ts':
+        return Icons.javascript;
+      case 'json':
+        return Icons.data_object;
+      case 'yaml':
+      case 'yml':
+        return Icons.settings;
+      case 'md':
+        return Icons.description;
+      case 'html':
+      case 'css':
+        return Icons.web;
+      case 'xml':
+        return Icons.code;
+      case 'png':
+      case 'jpg':
+      case 'jpeg':
+      case 'gif':
+      case 'svg':
+        return Icons.image;
+      case 'txt':
+        return Icons.text_snippet;
+      default:
+        return Icons.insert_drive_file;
+    }
   }
 
   Color _getFileColor(String name) {
     final ext = name.split('.').last.toLowerCase();
-    return switch (ext) {
-      'dart' => const Color(0xFF61DAFB),
-      'kt' | 'kts' => const Color(0xFFA97BFF),
-      'py' => const Color(0xFF3776AB),
-      'js' => const Color(0xFFF7DF1E),
-      'ts' => const Color(0xFF3178C6),
-      'json' => const Color(0xFFCBCB41),
-      'yaml' | 'yml' => const Color(0xFFCB171E),
-      'md' => const Color(0xFF083FA1),
-      'html' => const Color(0xFFE34F26),
-      'css' => const Color(0xFF1572B6),
-      _ => Colors.white54,
-    };
+    switch (ext) {
+      case 'dart':
+        return const Color(0xFF61DAFB);
+      case 'kt':
+      case 'kts':
+        return const Color(0xFFA97BFF);
+      case 'py':
+        return const Color(0xFF3776AB);
+      case 'js':
+        return const Color(0xFFF7DF1E);
+      case 'ts':
+        return const Color(0xFF3178C6);
+      case 'json':
+        return const Color(0xFFCBCB41);
+      case 'yaml':
+      case 'yml':
+        return const Color(0xFFCB171E);
+      case 'md':
+        return const Color(0xFF083FA1);
+      case 'html':
+        return const Color(0xFFE34F26);
+      case 'css':
+        return const Color(0xFF1572B6);
+      default:
+        return Colors.white54;
+    }
   }
 }

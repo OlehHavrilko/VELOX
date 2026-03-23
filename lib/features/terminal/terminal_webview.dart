@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -14,11 +15,19 @@ class TerminalWebView extends ConsumerStatefulWidget {
 class _TerminalWebViewState extends ConsumerState<TerminalWebView> {
   late WebViewController _controller;
   bool _webViewReady = false;
+  bool _ptyStarted = false;
+  StreamSubscription<String>? _outputSub;
 
   @override
   void initState() {
     super.initState();
     _initWebView();
+  }
+
+  @override
+  void dispose() {
+    _outputSub?.cancel();
+    super.dispose();
   }
 
   void _initWebView() {
@@ -38,7 +47,7 @@ class _TerminalWebViewState extends ConsumerState<TerminalWebView> {
       final type = json['type'] as String;
 
       if (type == 'ready') {
-        setState(() => _webViewReady = true);
+        if (mounted) setState(() => _webViewReady = true);
         _startPty();
       } else if (type == 'input') {
         final data = json['data'] as String;
@@ -48,11 +57,14 @@ class _TerminalWebViewState extends ConsumerState<TerminalWebView> {
   }
 
   Future<void> _startPty() async {
+    if (_ptyStarted) return;
+    _ptyStarted = true;
+
     final notifier = ref.read(terminalProvider.notifier);
     await notifier.start();
 
-    notifier.outputStream.listen((text) {
-      if (_webViewReady) {
+    _outputSub = notifier.outputStream.listen((text) {
+      if (_webViewReady && mounted) {
         final bytes = utf8.encode(text);
         final b64 = base64Encode(bytes);
         _controller.runJavaScript("writeBase64('$b64')");

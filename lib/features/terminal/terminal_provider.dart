@@ -1,3 +1,4 @@
+import 'dart:async' show unawaited;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'pty_service.dart';
 
@@ -36,7 +37,7 @@ class TerminalNotifier extends StateNotifier<TerminalState> {
 
   @override
   void dispose() {
-    _ptyService.kill();
+    unawaited(_ptyService.kill());
     super.dispose();
   }
 }

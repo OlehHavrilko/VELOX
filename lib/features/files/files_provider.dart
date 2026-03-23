@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class FileItem {
@@ -54,7 +55,17 @@ class FilesNotifier extends StateNotifier<FilesState> {
     _loadSavedPath();
   }
 
+  Future<void> _ensureStoragePermission() async {
+    if (Platform.isAndroid) {
+      final status = await Permission.manageExternalStorage.status;
+      if (!status.isGranted) {
+        await Permission.manageExternalStorage.request();
+      }
+    }
+  }
+
   Future<void> _loadSavedPath() async {
+    await _ensureStoragePermission();
     final prefs = await SharedPreferences.getInstance();
     final saved = prefs.getString('root_path');
     if (saved != null && await Directory(saved).exists()) {
@@ -63,6 +74,7 @@ class FilesNotifier extends StateNotifier<FilesState> {
   }
 
   Future<void> pickRootDirectory() async {
+    await _ensureStoragePermission();
     final result = await FilePicker.platform.getDirectoryPath();
     if (result != null) {
       final prefs = await SharedPreferences.getInstance();

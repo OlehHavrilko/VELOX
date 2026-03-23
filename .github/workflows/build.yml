@@ -23,21 +23,42 @@ jobs:
 
       - name: Generate Android scaffold
         run: |
+          set -e
           flutter create --org com.velox --project-name velox /tmp/scaffold
-          cp /tmp/scaffold/android/settings.gradle android/settings.gradle
-          cp /tmp/scaffold/android/build.gradle android/build.gradle
-          cp /tmp/scaffold/android/gradle.properties android/gradle.properties
-          cp /tmp/scaffold/android/app/build.gradle android/app/build.gradle
+          cp /tmp/scaffold/android/settings.gradle.kts android/settings.gradle.kts
+          cp /tmp/scaffold/android/build.gradle.kts android/build.gradle.kts
+          cp /tmp/scaffold/android/app/build.gradle.kts android/app/build.gradle.kts
           cp -r /tmp/scaffold/android/gradle android/
+          if [ -f android/gradle.properties ]; then
+            echo "" >> android/gradle.properties
+          fi
+          if [ -f /tmp/scaffold/android/gradle.properties ]; then
+            cat /tmp/scaffold/android/gradle.properties >> android/gradle.properties
+          fi
+          if [ -z "${FLUTTER_ROOT:-}" ]; then
+            echo "Error: FLUTTER_ROOT is not set" >&2
+            exit 1
+          fi
           echo "flutter.sdk=$FLUTTER_ROOT" > android/local.properties
-          sed -i 's/com.example.velox/com.velox.app/g' android/app/build.gradle
-          sed -i 's/minSdkVersion 16/minSdkVersion 21/' android/app/build.gradle
+          sed -i 's/com\.example\.velox/com.velox.app/g' android/app/build.gradle.kts
+          sed -i 's/minSdk = .*/minSdk = 21/' android/app/build.gradle.kts
 
       - name: Download xterm.js assets
         run: |
+          set -e
           mkdir -p assets/xterm
-          curl -L "https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.js" -o assets/xterm/xterm.js
-          curl -L "https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css" -o assets/xterm/xterm.css
+          curl -fL "https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.js" -o assets/xterm/xterm.js
+          curl -fL "https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css" -o assets/xterm/xterm.css
+          if [ ! -f assets/xterm/xterm.js ] || [ ! -f assets/xterm/xterm.css ]; then
+            echo "Error: xterm assets download failed" >&2
+            exit 1
+          fi
+
+      - name: Create Monaco assets directory
+        run: |
+          set -e
+          mkdir -p assets/monaco
+          echo "Monaco assets directory created"
 
       - run: flutter pub get
 

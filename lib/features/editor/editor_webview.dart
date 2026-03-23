@@ -14,11 +14,28 @@ class EditorWebView extends ConsumerStatefulWidget {
 class _EditorWebViewState extends ConsumerState<EditorWebView> {
   late WebViewController _controller;
   bool _ready = false;
+  ProviderSubscription<EditorState>? _subscription;
 
   @override
   void initState() {
     super.initState();
     _initWebView();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _subscription?.close();
+    _subscription = ref.listenManual(editorProvider, (prev, next) {
+      if (!_ready) return;
+      if (prev?.filePath != next.filePath) _loadCurrentFile();
+    });
+  }
+
+  @override
+  void dispose() {
+    _subscription?.close();
+    super.dispose();
   }
 
   void _initWebView() {
@@ -27,15 +44,6 @@ class _EditorWebViewState extends ConsumerState<EditorWebView> {
       ..setBackgroundColor(const Color(0xFF0D1117))
       ..addJavaScriptChannel('VeloxEditor', onMessageReceived: _onMessage)
       ..loadFlutterAsset('assets/monaco/monaco.html');
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    ref.listenManual(editorProvider, (prev, next) {
-      if (!_ready) return;
-      if (prev?.filePath != next.filePath) _loadCurrentFile();
-    });
   }
 
   void _onMessage(JavaScriptMessage msg) {
@@ -57,13 +65,9 @@ class _EditorWebViewState extends ConsumerState<EditorWebView> {
   void _loadCurrentFile() {
     final state = ref.read(editorProvider);
     if (state.filePath == null) return;
-    final escaped = state.content
-        .replaceAll('\\', '\\\\')
-        .replaceAll('`', '\\`')
-        .replaceAll('\$', '\\$');
-    _controller.runJavaScript(
-      "setContent(`$escaped`, '${state.language}')",
-    );
+    final contentJson = jsonEncode(state.content);
+    final langJson = jsonEncode(state.language);
+    _controller.runJavaScript('setContent($contentJson, $langJson)');
   }
 
   @override
