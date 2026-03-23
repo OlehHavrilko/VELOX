@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'files_provider.dart';
+import '../editor/editor_provider.dart';
 
 class FilesScreen extends ConsumerWidget {
   const FilesScreen({super.key});
@@ -144,11 +146,17 @@ class FilesScreen extends ConsumerWidget {
             ref.read(filesProvider.notifier).selectFile(item.path);
             if (item.isDirectory) {
               ref.read(filesProvider.notifier).navigateTo(item.path);
+            } else {
+              ref.read(editorProvider.notifier).openFile(item.path);
+              context.go('/editor');
             }
           },
           onDoubleTap: () {
             if (item.isDirectory) {
               ref.read(filesProvider.notifier).navigateTo(item.path);
+            } else {
+              ref.read(editorProvider.notifier).openFile(item.path);
+              context.go('/editor');
             }
           },
           child: Container(

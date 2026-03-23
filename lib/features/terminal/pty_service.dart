@@ -22,6 +22,10 @@ class PtyService {
     await _methodChannel.invokeMethod('write', {'input': input});
   }
 
+  Future<void> sendCommand(String command) async {
+    await write('$command\n');
+  }
+
   Future<void> resize(int cols, int rows) async {
     await _methodChannel.invokeMethod('resize', {'cols': cols, 'rows': rows});
   }

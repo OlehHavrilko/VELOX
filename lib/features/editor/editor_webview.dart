@@ -59,15 +59,21 @@ class _EditorWebViewState extends ConsumerState<EditorWebView> {
       } else if (type == 'cursor') {
         notifier.onCursorChanged(json['line'] as int, json['col'] as int);
       }
-    } catch (_) {}
+    } catch (e) {
+      // Silently ignore malformed messages
+    }
   }
 
   void _loadCurrentFile() {
-    final state = ref.read(editorProvider);
-    if (state.filePath == null) return;
-    final contentJson = jsonEncode(state.content);
-    final langJson = jsonEncode(state.language);
-    _controller.runJavaScript('setContent($contentJson, $langJson)');
+    try {
+      final state = ref.read(editorProvider);
+      if (state.filePath == null) return;
+      final contentJson = jsonEncode(state.content);
+      final langJson = jsonEncode(state.language);
+      _controller.runJavaScript('setContent($contentJson, $langJson)');
+    } catch (e) {
+      // Handle load errors gracefully
+    }
   }
 
   @override

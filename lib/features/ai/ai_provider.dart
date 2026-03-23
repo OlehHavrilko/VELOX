@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import '../editor/editor_provider.dart';
+import '../terminal/terminal_provider.dart';
 
 class ChatMessage {
   final String role;
@@ -47,11 +49,11 @@ class AiNotifier extends StateNotifier<AiState> {
   static const _apiKeyKey = 'openrouter_api_key';
   static const _apiUrl = 'https://openrouter.ai/api/v1/chat/completions';
   static const _model = 'meta-llama/llama-3.3-70b-instruct:free';
-  static const _systemPrompt =
-      'You are an expert coding assistant integrated into VELOX mobile IDE. '
-      'Help with Dart, Flutter, Kotlin, Python, JavaScript, and general coding questions.';
 
-  AiNotifier() : super(const AiState()) {
+  // References to other providers - will be set via ref
+  final Ref _ref;
+
+  AiNotifier(this._ref) : super(const AiState()) {
     _loadApiKey();
   }
 
@@ -90,8 +92,17 @@ class AiNotifier extends StateNotifier<AiState> {
     );
 
     try {
+      // Build context from editor and terminal
+      final editorState = _ref.read(editorProvider);
+      final terminalState = _ref.read(terminalProvider);
+
+      final systemPrompt = _buildSystemPrompt(
+        editorState: editorState,
+        terminalState: terminalState,
+      );
+
       final messages = [
-        {'role': 'system', 'content': _systemPrompt},
+        {'role': 'system', 'content': systemPrompt},
         ...state.messages.map((m) => {'role': m.role, 'content': m.content}),
         {'role': 'user', 'content': content.trim()},
       ];
@@ -141,6 +152,55 @@ class AiNotifier extends StateNotifier<AiState> {
     }
   }
 
+  String _buildSystemPrompt({
+    required EditorState editorState,
+    required TerminalState terminalState,
+  }) {
+    final buffer = StringBuffer();
+    buffer.writeln('You are an expert coding assistant integrated into VELOX mobile IDE.');
+    buffer.writeln('Help with Dart, Flutter, Kotlin, Python, JavaScript, and general coding questions.');
+    buffer.writeln();
+
+    // Add current file context
+    if (editorState.filePath != null) {
+      buffer.writeln('Current file: ${editorState.filePath}');
+      buffer.writeln('Language: ${editorState.language}');
+      buffer.writeln('Content:');
+      buffer.writeln(editorState.content);
+      buffer.writeln();
+    }
+
+    // Add terminal output context (last 50 lines for brevity)
+    if (terminalState.outputBuffer.isNotEmpty) {
+      buffer.writeln('Recent terminal output (last ${terminalState.outputBuffer.length} lines):');
+      final lines = terminalState.outputBuffer.length > 50
+          ? terminalState.outputBuffer.sublist(terminalState.outputBuffer.length - 50)
+          : terminalState.outputBuffer;
+      for (final line in lines) {
+        buffer.writeln(line);
+      }
+      buffer.writeln();
+    }
+
+    // Add available actions
+    buffer.writeln('Available actions:');
+    buffer.writeln('- Insert code at cursor: Use [INSERT_CODE] block in response');
+    buffer.writeln('- Run command: Use [RUN_COMMAND] block in response');
+    buffer.writeln();
+
+    return buffer.toString();
+  }
+
+  void insertCode(String code) {
+    // This will be handled by EditorScreen via JS channel
+    // For now, just log it
+    // TODO: Implement actual code insertion via platform channel
+  }
+
+  void runCommand(String command) {
+    _ref.read(terminalProvider.notifier).sendCommand(command);
+  }
+
   void clearError() {
     state = state.copyWith(error: null);
   }
@@ -151,5 +211,5 @@ class AiNotifier extends StateNotifier<AiState> {
 }
 
 final aiProvider = StateNotifierProvider<AiNotifier, AiState>(
-  (ref) => AiNotifier(),
+  (ref) => AiNotifier(ref),
 );

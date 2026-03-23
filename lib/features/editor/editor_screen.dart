@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
 import 'editor_provider.dart';
 import 'editor_webview.dart';
+import '../terminal/terminal_provider.dart';
 
 class EditorScreen extends ConsumerWidget {
   const EditorScreen({super.key});
@@ -40,13 +41,22 @@ class EditorScreen extends ConsumerWidget {
         children: [
           const SizedBox(width: 8),
           IconButton(
+            icon: const Icon(Icons.play_arrow,
+                size: 18, color: Color(0xFF10B981)),
+            onPressed: state.filePath != null
+                ? () => _runFile(context, ref, state)
+                : null,
+            tooltip: 'Run',
+          ),
+          const VerticalDivider(width: 8, color: Colors.white12),
+          IconButton(
             icon: const Icon(Icons.save, size: 18, color: Colors.white70),
             onPressed: state.isDirty
                 ? () => ref.read(editorProvider.notifier).saveFile()
                 : null,
             tooltip: 'Save',
           ),
-          const VerticalDivider(width: 16, color: Colors.white12),
+          const VerticalDivider(width: 8, color: Colors.white12),
           IconButton(
             icon:
                 const Icon(Icons.folder_open, size: 18, color: Colors.white70),
@@ -56,6 +66,41 @@ class EditorScreen extends ConsumerWidget {
         ],
       ),
     );
+  }
+
+  void _runFile(BuildContext context, WidgetRef ref, EditorState state) {
+    if (state.filePath == null) return;
+
+    final cmd = switch (state.language) {
+      'dart' => 'dart run ${state.filePath}',
+      'python' => 'python3 ${state.filePath}',
+      'javascript' => 'node ${state.filePath}',
+      'typescript' => 'npx ts-node ${state.filePath}',
+      'kotlin' => 'kotlinc -script ${state.filePath}',
+      'shell' => 'bash ${state.filePath}',
+      _ => null,
+    };
+
+    if (cmd != null) {
+      ref.read(terminalProvider.notifier).sendCommand(cmd);
+      // Navigate to terminal to see output
+      // Uncomment the next line to auto-switch to terminal:
+      // context.go('/terminal');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Running: $cmd'),
+          backgroundColor: const Color(0xFF10B981),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No run command for this file type'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+    }
   }
 
   Widget _buildTabs(WidgetRef ref, EditorState state) {

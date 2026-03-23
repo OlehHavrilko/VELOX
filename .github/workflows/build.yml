@@ -24,7 +24,7 @@ jobs:
       - name: Verify and fix Gradle configuration
         run: |
           set -e
-          
+
           # Check if settings.gradle.kts exists
           if [ ! -f android/settings.gradle.kts ]; then
             echo "Creating settings.gradle.kts..."
@@ -56,7 +56,7 @@ plugins {
 include(":app")
 EOF
           fi
-          
+
           # Check if build.gradle.kts exists in root
           if [ ! -f android/build.gradle.kts ]; then
             echo "Creating build.gradle.kts..."
@@ -84,7 +84,7 @@ tasks.register<Delete>("clean") {
 }
 EOF
           fi
-          
+
           # Check if app/build.gradle.kts exists
           if [ ! -f android/app/build.gradle.kts ]; then
             echo "Creating app/build.gradle.kts..."
@@ -131,8 +131,11 @@ flutter {
 }
 EOF
           fi
-          
+
           echo "Gradle configuration verified"
+          echo "Files created:"
+          ls -la android/
+          ls -la android/app/
 
       - name: Download xterm.js assets
         run: |
@@ -144,6 +147,7 @@ EOF
             echo "Error: xterm assets download failed"
             exit 1
           fi
+          echo "xterm.js assets downloaded successfully"
 
       - name: Create Monaco assets directory
         run: |
@@ -151,11 +155,29 @@ EOF
           mkdir -p assets/monaco
           echo "Monaco assets directory created"
 
-      - run: flutter pub get
+      - name: Get Flutter dependencies
+        run: flutter pub get
+        env:
+          FLUTTER_ROOT: ${{ env.FLUTTER_ROOT }}
 
-      - run: flutter build apk --release --target-platform android-arm64
+      - name: Build debug APK
+        run: flutter build apk --debug --target-platform android-arm64
+        env:
+          FLUTTER_ROOT: ${{ env.FLUTTER_ROOT }}
+
+      - name: Verify APK exists
+        run: |
+          if [ -f build/app/outputs/flutter-apk/app-debug.apk ]; then
+            echo "Debug APK built successfully"
+            ls -lh build/app/outputs/flutter-apk/
+          else
+            echo "Error: Debug APK not found"
+            ls -la build/app/outputs/flutter-apk/ || true
+            exit 1
+          fi
 
       - uses: actions/upload-artifact@v4
         with:
-          name: velox-release
-          path: build/app/outputs/flutter-apk/app-release.apk
+          name: velox-debug
+          path: build/app/outputs/flutter-apk/app-debug.apk
+

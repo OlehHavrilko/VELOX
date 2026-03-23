@@ -32,7 +32,9 @@ class PtyPlugin(private val context: Context) {
                         result.success(null)
                     }
                     "resize" -> {
-                        // PTY resize - accept but no-op for basic impl
+                        val cols = call.argument<Int>("cols") ?: 80
+                        val rows = call.argument<Int>("rows") ?: 24
+                        plugin.resize(cols, rows)
                         result.success(null)
                     }
                     "kill" -> {
@@ -114,5 +116,12 @@ class PtyPlugin(private val context: Context) {
         process?.destroy()
         outputThread?.interrupt()
         process = null
+    }
+
+    private fun resize(cols: Int, rows: Int) {
+        // PTY resize via TIOCSWINSZ - requires native library
+        // For now, just log the requested size
+        android.util.Log.i("PtyPlugin", "Resize requested: ${cols}x${rows}")
+        // TODO: Implement proper PTY resize using libpty or termios
     }
 }

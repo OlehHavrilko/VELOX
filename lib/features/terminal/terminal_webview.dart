@@ -53,23 +53,38 @@ class _TerminalWebViewState extends ConsumerState<TerminalWebView> {
         final data = json['data'] as String;
         ref.read(terminalProvider.notifier).write(data);
       }
-    } catch (_) {}
+    } catch (e) {
+      // Silently ignore malformed messages
+    }
   }
 
   Future<void> _startPty() async {
     if (_ptyStarted) return;
     _ptyStarted = true;
 
-    final notifier = ref.read(terminalProvider.notifier);
-    await notifier.start();
+    try {
+      final notifier = ref.read(terminalProvider.notifier);
+      await notifier.start();
 
-    _outputSub = notifier.outputStream.listen((text) {
-      if (_webViewReady && mounted) {
-        final bytes = utf8.encode(text);
-        final b64 = base64Encode(bytes);
-        _controller.runJavaScript("writeBase64('$b64')");
-      }
-    });
+      _outputSub = notifier.outputStream.listen(
+        (text) {
+          if (_webViewReady && mounted) {
+            try {
+              final bytes = utf8.encode(text);
+              final b64 = base64Encode(bytes);
+              _controller.runJavaScript("writeBase64('$b64')");
+            } catch (e) {
+              // Ignore encoding errors
+            }
+          }
+        },
+        onError: (error) {
+          // Handle stream errors gracefully
+        },
+      );
+    } catch (e) {
+      // Handle PTY start errors
+    }
   }
 
   @override
