@@ -147,6 +147,26 @@ class FilesNotifier extends StateNotifier<FilesState> {
       await loadDirectory(state.rootPath!);
     }
   }
+
+  /// Creates a new file named [name] in the current directory.
+  /// Returns `true` if the file was created, `false` if it already existed.
+  Future<bool> createFile(String name) async {
+    if (state.rootPath == null) return false;
+    final filePath = '${state.rootPath}${Platform.pathSeparator}$name';
+    try {
+      final file = File(filePath);
+      if (await file.exists()) {
+        state = state.copyWith(error: 'File "$name" already exists.');
+        return false;
+      }
+      await file.create(recursive: true);
+      await refresh();
+      return true;
+    } catch (e) {
+      state = state.copyWith(error: e.toString());
+      return false;
+    }
+  }
 }
 
 final filesProvider = StateNotifierProvider<FilesNotifier, FilesState>(

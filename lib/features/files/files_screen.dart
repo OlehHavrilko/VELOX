@@ -11,11 +11,22 @@ class FilesScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(filesProvider);
 
+    ref.listen<FilesState>(filesProvider, (prev, next) {
+      if (next.error != null && next.error != prev?.error) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(next.error!),
+            backgroundColor: Colors.red.shade800,
+          ),
+        );
+      }
+    });
+
     return Scaffold(
       backgroundColor: const Color(0xFF0D1117),
       body: Column(
         children: [
-          _buildHeader(ref, state),
+          _buildHeader(context, ref, state),
           _buildBreadcrumb(ref, state),
           Expanded(
             child: state.rootPath == null
@@ -29,7 +40,7 @@ class FilesScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildHeader(WidgetRef ref, FilesState state) {
+  Widget _buildHeader(BuildContext context, WidgetRef ref, FilesState state) {
     return Container(
       height: 40,
       color: const Color(0xFF161B22),
@@ -48,6 +59,12 @@ class FilesScreen extends ConsumerWidget {
             onPressed: () => ref.read(filesProvider.notifier).refresh(),
             tooltip: 'Refresh',
           ),
+          if (state.rootPath != null)
+            IconButton(
+              icon: const Icon(Icons.add, size: 18, color: Color(0xFF10B981)),
+              onPressed: () => _showNewFileDialog(context, ref, state),
+              tooltip: 'New File',
+            ),
           const Spacer(),
           if (state.rootPath != null)
             IconButton(
@@ -56,6 +73,58 @@ class FilesScreen extends ConsumerWidget {
               onPressed: () => ref.read(filesProvider.notifier).navigateUp(),
               tooltip: 'Go Up',
             ),
+        ],
+      ),
+    );
+  }
+
+  void _showNewFileDialog(
+      BuildContext context, WidgetRef ref, FilesState state) {
+    final controller = TextEditingController();
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: const Color(0xFF161B22),
+        title: const Text(
+          'New File',
+          style: TextStyle(color: Colors.white),
+        ),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          style: const TextStyle(color: Colors.white),
+          decoration: const InputDecoration(
+            hintText: 'filename.dart',
+            hintStyle: TextStyle(color: Colors.white38),
+            enabledBorder: UnderlineInputBorder(
+              borderSide: BorderSide(color: Colors.white24),
+            ),
+            focusedBorder: UnderlineInputBorder(
+              borderSide: BorderSide(color: Color(0xFF58A6FF)),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child:
+                const Text('Cancel', style: TextStyle(color: Colors.white70)),
+          ),
+          TextButton(
+            onPressed: () async {
+              final name = controller.text.trim();
+              if (name.isEmpty) {
+                ScaffoldMessenger.of(dialogContext).showSnackBar(
+                  const SnackBar(content: Text('File name cannot be empty')),
+                );
+                return;
+              }
+              Navigator.pop(dialogContext);
+              await ref.read(filesProvider.notifier).createFile(name);
+            },
+            child: const Text('Create',
+                style: TextStyle(color: Color(0xFF58A6FF))),
+          ),
         ],
       ),
     );

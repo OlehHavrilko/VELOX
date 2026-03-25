@@ -4,6 +4,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'editor_provider.dart';
 
+/// Exposes the editor's insertText capability so other features (e.g. AI) can
+/// inject code without going through a platform channel.
+final editorWebViewControllerProvider =
+    StateProvider<WebViewController?>((ref) => null);
+
 class EditorWebView extends ConsumerStatefulWidget {
   const EditorWebView({super.key});
 
@@ -35,6 +40,8 @@ class _EditorWebViewState extends ConsumerState<EditorWebView> {
   @override
   void dispose() {
     _subscription?.close();
+    // Clear the shared controller reference when this widget is removed.
+    ref.read(editorWebViewControllerProvider.notifier).state = null;
     super.dispose();
   }
 
@@ -53,6 +60,8 @@ class _EditorWebViewState extends ConsumerState<EditorWebView> {
       final notifier = ref.read(editorProvider.notifier);
       if (type == 'ready') {
         setState(() => _ready = true);
+        // Publish the controller so other providers can call insertText().
+        ref.read(editorWebViewControllerProvider.notifier).state = _controller;
         _loadCurrentFile();
       } else if (type == 'change') {
         notifier.onContentChanged(json['content'] as String);

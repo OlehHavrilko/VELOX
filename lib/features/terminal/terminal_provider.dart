@@ -1,4 +1,4 @@
-import 'dart:async' show unawaited;
+import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'pty_service.dart';
 

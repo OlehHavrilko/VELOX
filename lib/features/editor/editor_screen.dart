@@ -83,16 +83,7 @@ class EditorScreen extends ConsumerWidget {
 
     if (cmd != null) {
       ref.read(terminalProvider.notifier).sendCommand(cmd);
-      // Navigate to terminal to see output
-      // Uncomment the next line to auto-switch to terminal:
-      // context.go('/terminal');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Running: $cmd'),
-          backgroundColor: const Color(0xFF10B981),
-          duration: const Duration(seconds: 2),
-        ),
-      );
+      context.go('/terminal');
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(

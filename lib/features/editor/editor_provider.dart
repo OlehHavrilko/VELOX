@@ -22,7 +22,7 @@ class EditorState {
   });
 
   EditorState copyWith({
-    String? filePath,
+    Object? filePath = _sentinel,
     String? content,
     String? language,
     bool? isDirty,
@@ -31,7 +31,7 @@ class EditorState {
     List<String>? openedFiles,
   }) {
     return EditorState(
-      filePath: filePath ?? this.filePath,
+      filePath: filePath == _sentinel ? this.filePath : filePath as String?,
       content: content ?? this.content,
       language: language ?? this.language,
       isDirty: isDirty ?? this.isDirty,
@@ -41,6 +41,8 @@ class EditorState {
     );
   }
 }
+
+const Object _sentinel = Object();
 
 class EditorNotifier extends StateNotifier<EditorState> {
   EditorNotifier() : super(const EditorState());
@@ -77,9 +79,18 @@ class EditorNotifier extends StateNotifier<EditorState> {
 
   void closeFile(String path) {
     final opened = state.openedFiles.where((f) => f != path).toList();
-    final newPath = opened.isNotEmpty ? opened.last : null;
-    state = state.copyWith(filePath: newPath, openedFiles: opened);
-    if (newPath != null) openFile(newPath);
+    if (opened.isEmpty) {
+      state = state.copyWith(
+        filePath: null,
+        content: '',
+        isDirty: false,
+        openedFiles: [],
+      );
+      return;
+    }
+    final newPath = opened.last;
+    state = state.copyWith(openedFiles: opened);
+    openFile(newPath);
   }
 
   String _detectLanguage(String path) {

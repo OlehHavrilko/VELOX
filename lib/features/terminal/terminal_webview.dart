@@ -18,6 +18,10 @@ class _TerminalWebViewState extends ConsumerState<TerminalWebView> {
   bool _ptyStarted = false;
   StreamSubscription<String>? _outputSub;
 
+  // Approximate glyph dimensions for the default monospace font at 13px.
+  static const double _charWidth = 7.8;
+  static const double _charHeight = 17.0;
+
   @override
   void initState() {
     super.initState();
@@ -89,6 +93,20 @@ class _TerminalWebViewState extends ConsumerState<TerminalWebView> {
 
   @override
   Widget build(BuildContext context) {
-    return WebViewWidget(controller: _controller);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        _onLayoutChanged(constraints);
+        return WebViewWidget(controller: _controller);
+      },
+    );
+  }
+
+  void _onLayoutChanged(BoxConstraints constraints) {
+    // Skip if the WebView isn't ready or has no valid size yet.
+    if (!_webViewReady || constraints.maxWidth <= 0) return;
+    final cols = (constraints.maxWidth / _charWidth).floor().clamp(20, 500);
+    final rows = (constraints.maxHeight / _charHeight).floor().clamp(5, 200);
+    _controller.runJavaScript('resizeTerminal($cols, $rows)');
+    ref.read(terminalProvider.notifier).resize(cols, rows);
   }
 }

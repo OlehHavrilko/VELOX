@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../editor/editor_provider.dart';
+import '../editor/editor_webview.dart';
 import '../terminal/terminal_provider.dart';
 
 class ChatMessage {
@@ -138,6 +139,9 @@ class AiNotifier extends StateNotifier<AiState> {
           messages: [...state.messages, assistantMessage],
           isLoading: false,
         );
+
+        // Execute any actions embedded in the response.
+        _processActions(assistantContent);
       } else {
         state = state.copyWith(
           isLoading: false,
@@ -191,10 +195,40 @@ class AiNotifier extends StateNotifier<AiState> {
     return buffer.toString();
   }
 
+  /// Parses [INSERT_CODE]...[/INSERT_CODE] and [RUN_COMMAND]...[/RUN_COMMAND]
+  /// blocks from an assistant message and executes the corresponding actions.
+  void _processActions(String content) {
+    // Insert code blocks into the editor.
+    final insertRe =
+        RegExp(r'\[INSERT_CODE\](.*?)\[/INSERT_CODE\]', dotAll: true);
+    for (final match in insertRe.allMatches(content)) {
+      final code = match.group(1)?.trim() ?? '';
+      if (code.isNotEmpty) insertCode(code);
+    }
+
+    // Run command blocks in the terminal.
+    final runRe = RegExp(r'\[RUN_COMMAND\](.*?)\[/RUN_COMMAND\]', dotAll: true);
+    for (final match in runRe.allMatches(content)) {
+      final cmd = match.group(1)?.trim() ?? '';
+      if (cmd.isNotEmpty) runCommand(cmd);
+    }
+  }
+
+  /// Inserts [code] at the current cursor position in the Monaco editor.
   void insertCode(String code) {
-    // This will be handled by EditorScreen via JS channel
-    // For now, just log it
-    // TODO: Implement actual code insertion via platform channel
+    try {
+      final controller = _ref.read(editorWebViewControllerProvider);
+      if (controller == null) {
+        state = state.copyWith(
+            error: 'Editor is not open. Navigate to the editor tab first.');
+        return;
+      }
+      // JSON-encode to safely escape quotes and newlines for JS.
+      final codeJson = jsonEncode(code);
+      controller.runJavaScript('insertText($codeJson)');
+    } catch (e) {
+      state = state.copyWith(error: 'Failed to insert code: $e');
+    }
   }
 
   void runCommand(String command) {
