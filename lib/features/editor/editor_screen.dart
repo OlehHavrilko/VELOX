@@ -71,36 +71,42 @@ class EditorScreen extends ConsumerWidget {
   void _runFile(BuildContext context, WidgetRef ref, EditorState state) {
     if (state.filePath == null) return;
 
-    final cmd = switch (state.language) {
-      'dart' => 'dart run ${state.filePath}',
-      'python' => 'python3 ${state.filePath}',
-      'javascript' => 'node ${state.filePath}',
-      'typescript' => 'npx ts-node ${state.filePath}',
-      'kotlin' => 'kotlinc -script ${state.filePath}',
-      'shell' => 'bash ${state.filePath}',
-      _ => null,
-    };
-
-    if (cmd != null) {
-      ref.read(terminalProvider.notifier).sendCommand(cmd);
-      // Navigate to terminal to see output
-      // Uncomment the next line to auto-switch to terminal:
-      // context.go('/terminal');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Running: $cmd'),
-          backgroundColor: const Color(0xFF10B981),
-          duration: const Duration(seconds: 2),
-        ),
-      );
-    } else {
+    final runInfo = _getRunCommand(state);
+    if (runInfo == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('No run command for this file type'),
           backgroundColor: Colors.orange,
         ),
       );
+      return;
     }
+
+    // Show info about running
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Running: ${runInfo['cmd']}'),
+        backgroundColor: const Color(0xFF10B981),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+
+    ref.read(terminalProvider.notifier).sendCommand(runInfo['cmd']!);
+  }
+
+  Map<String, String>? _getRunCommand(EditorState state) {
+    if (state.filePath == null) return null;
+    final path = state.filePath!;
+
+    return switch (state.language) {
+      'dart' => {'cmd': 'dart run $path'},
+      'python' => {'cmd': 'python3 $path'},
+      'javascript' => {'cmd': 'node $path'},
+      'typescript' => {'cmd': 'npx ts-node $path'},
+      'kotlin' => {'cmd': 'kotlinc -script $path'},
+      'shell' => {'cmd': 'bash $path'},
+      _ => null,
+    };
   }
 
   Widget _buildTabs(WidgetRef ref, EditorState state) {

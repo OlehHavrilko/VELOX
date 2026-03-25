@@ -6,6 +6,7 @@ import '../../features/terminal/terminal_screen.dart';
 import '../../features/editor/editor_screen.dart';
 import '../../features/files/files_screen.dart';
 import '../../features/ai/ai_screen.dart';
+import '../../features/git/git_screen.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   return GoRouter(
@@ -22,6 +23,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/editor', builder: (_, __) => const EditorScreen()),
           GoRoute(path: '/files', builder: (_, __) => const FilesScreen()),
           GoRoute(path: '/ai', builder: (_, __) => const AiScreen()),
+          GoRoute(path: '/git', builder: (_, __) => const GitScreen()),
         ],
       ),
     ],
@@ -37,13 +39,14 @@ class MainShell extends StatefulWidget {
 }
 
 class _MainShellState extends State<MainShell> {
-  static const _routes = ['/', '/terminal', '/editor', '/files', '/ai'];
+  static const _routes = ['/', '/terminal', '/editor', '/files', '/ai', '/git'];
 
   int _locationToIndex(String location) {
     if (location.startsWith('/terminal')) return 1;
     if (location.startsWith('/editor')) return 2;
     if (location.startsWith('/files')) return 3;
     if (location.startsWith('/ai')) return 4;
+    if (location.startsWith('/git')) return 5;
     return 0;
   }
 
@@ -76,6 +79,10 @@ class _MainShellState extends State<MainShell> {
               icon: Icon(Icons.auto_awesome_outlined),
               selectedIcon: Icon(Icons.auto_awesome),
               label: 'AI'),
+          NavigationDestination(
+              icon: Icon(Icons.merge_type_outlined),
+              selectedIcon: Icon(Icons.merge_type),
+              label: 'Git'),
         ],
       ),
     );

@@ -7,7 +7,6 @@ plugins {
 android {
     namespace = "com.velox.app"
     compileSdk = 34
-    ndkVersion = "25.1.8937393"
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
