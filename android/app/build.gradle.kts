@@ -23,7 +23,6 @@ android {
         targetSdk = 34
         versionCode = flutter.versionCode
         versionName = flutter.versionName
-        ndkVersion = "28.2.13676358"
     }
 
     signingConfigs {

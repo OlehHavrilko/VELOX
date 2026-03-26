@@ -21,117 +21,17 @@ jobs:
           flutter-version: '3.29.2'
           channel: 'stable'
 
-      - name: Create Gradle configuration
+      - name: Generate local.properties
         run: |
-          set -e
-          
-          # Create settings.gradle.kts
-          cat > android/settings.gradle.kts << 'SETTINGS_EOF'
-pluginManagement {
-    val flutterSdkPath = run {
-        val properties = java.util.Properties()
-        file("local.properties").inputStream().use { properties.load(it) }
-        val flutterSdkPath = properties.getProperty("flutter.sdk")
-        require(flutterSdkPath != null) { "flutter.sdk not set in local.properties" }
-        flutterSdkPath
-    }
-
-    includeBuild("$flutterSdkPath/packages/flutter_tools/gradle")
-
-    repositories {
-        google()
-        mavenCentral()
-        gradlePluginPortal()
-    }
-}
-
-plugins {
-    id("dev.flutter.flutter-plugin-loader") version "1.0.0"
-    id("com.android.application") version "8.1.0" apply false
-    id("org.jetbrains.kotlin.android") version "1.9.0" apply false
-}
-
-include(":app")
-SETTINGS_EOF
-
-          # Create build.gradle.kts
-          cat > android/build.gradle.kts << 'BUILD_EOF'
-allprojects {
-    repositories {
-        google()
-        mavenCentral()
-    }
-}
-
-val newBuildDir: Directory = rootProject.layout.buildDirectory.dir("../../build").get()
-rootProject.layout.buildDirectory.value(newBuildDir)
-
-subprojects {
-    val newSubprojectBuildDir: Directory = newBuildDir.dir(project.name)
-    project.layout.buildDirectory.value(newSubprojectBuildDir)
-}
-subprojects {
-    project.evaluationDependsOn(":app")
-}
-
-tasks.register<Delete>("clean") {
-    delete(rootProject.layout.buildDirectory)
-}
-BUILD_EOF
-
-          # Create app/build.gradle.kts
-          cat > android/app/build.gradle.kts << 'APP_EOF'
-plugins {
-    id("com.android.application")
-    id("kotlin-android")
-    id("dev.flutter.flutter-gradle-plugin")
-}
-
-android {
-    namespace = "com.velox.app"
-    compileSdk = 34
-
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
-    }
-
-    kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_17.toString()
-    }
-
-    defaultConfig {
-        applicationId = "com.velox.app"
-        minSdk = 21
-        targetSdk = 34
-        versionCode = 1
-        versionName = "1.0.0"
-    }
-
-    buildTypes {
-        release {
-            isMinifyEnabled = false
-            isShrinkResources = false
-            signingConfig = signingConfigs.getByName("debug")
-        }
-    }
-}
-
-flutter {
-    source = "../.."
-}
-APP_EOF
-
-          echo "Gradle files created"
-          ls -la android/
+          echo "flutter.sdk=$(flutter --version --machine | python3 -c "import sys,json; print(json.load(sys.stdin).get('flutterRoot',''))" 2>/dev/null || dirname $(dirname $(which flutter)))" > android/local.properties
+          echo "sdk.dir=$ANDROID_HOME" >> android/local.properties
+          cat android/local.properties
 
       - name: Download xterm.js assets
         run: |
-          set -e
           mkdir -p assets/xterm
           curl -fL "https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.js" -o assets/xterm/xterm.js
           curl -fL "https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css" -o assets/xterm/xterm.css
-          echo "Assets downloaded"
 
       - name: Get Flutter dependencies
         run: flutter pub get
@@ -144,3 +44,4 @@ APP_EOF
         with:
           name: velox-debug
           path: build/app/outputs/flutter-apk/app-debug.apk
+
