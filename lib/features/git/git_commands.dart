@@ -5,7 +5,11 @@ import 'git_models.dart';
 class GitCommands {
   GitCommands();
 
-  Future<String> _execute(String command, {String? workDir}) async {
+  /// Runs a shell command and returns (stdout+stderr, exitCode).
+  Future<({String output, int exitCode})> _run(
+    String command, {
+    String? workDir,
+  }) async {
     try {
       final result = await Process.run(
         'sh',
@@ -13,13 +17,19 @@ class GitCommands {
         workingDirectory: workDir,
         runInShell: false,
       );
-      // Return stdout, or stderr if stdout is empty
-      return (result.stdout as String).isNotEmpty 
-          ? result.stdout as String 
-          : result.stderr as String;
+      final stdout = (result.stdout as String).trim();
+      final stderr = (result.stderr as String).trim();
+      final combined = [if (stdout.isNotEmpty) stdout, if (stderr.isNotEmpty) stderr].join('\n');
+      return (output: combined, exitCode: result.exitCode);
     } catch (e) {
-      return '';
+      return (output: e.toString(), exitCode: -1);
     }
+  }
+
+  /// Legacy helper — returns combined text output (used for parsing).
+  Future<String> _execute(String command, {String? workDir}) async {
+    final r = await _run(command, workDir: workDir);
+    return r.output;
   }
 
   /// Get git status in porcelain format
@@ -38,9 +48,8 @@ class GitCommands {
       final workTreeStatus = line[1];
       final path = line.substring(3).trim();
       
-      // Determine if staged (has index status) and unstaged (has worktree status)
+      // Determine staging status from index character
       final isStaged = indexStatus != ' ' && indexStatus != '?';
-      final isUnstaged = workTreeStatus != ' ';
       
       GitFileStatusType statusType;
       
@@ -107,28 +116,55 @@ class GitCommands {
     await _execute('git reset HEAD -- "$file"', workDir: repoPath);
   }
 
-  /// Commit with message
+  /// Commit with message — safely passes message without shell injection risk
   Future<bool> commit(String repoPath, String message) async {
-    final output = await _execute('git commit -m "$message"', workDir: repoPath);
-    return output.isNotEmpty && !output.contains('nothing to commit');
+    try {
+      final result = await Process.run(
+        'git', ['commit', '-m', message],
+        workingDirectory: repoPath,
+      );
+      return result.exitCode == 0;
+    } catch (_) {
+      return false;
+    }
   }
 
   /// Push to remote
   Future<bool> push(String repoPath) async {
-    final output = await _execute('git push', workDir: repoPath);
-    return output.isNotEmpty && !output.contains('error');
+    try {
+      final result = await Process.run(
+        'git', ['push'],
+        workingDirectory: repoPath,
+      );
+      return result.exitCode == 0;
+    } catch (_) {
+      return false;
+    }
   }
 
   /// Pull from remote
   Future<bool> pull(String repoPath) async {
-    final output = await _execute('git pull', workDir: repoPath);
-    return output.isNotEmpty && !output.contains('error');
+    try {
+      final result = await Process.run(
+        'git', ['pull'],
+        workingDirectory: repoPath,
+      );
+      return result.exitCode == 0;
+    } catch (_) {
+      return false;
+    }
   }
 
   /// Clone repository
   Future<bool> clone(String url, String destPath) async {
-    final output = await _execute('git clone "$url" "$destPath"');
-    return output.isNotEmpty && !output.contains('error');
+    try {
+      final result = await Process.run(
+        'git', ['clone', url, destPath],
+      );
+      return result.exitCode == 0;
+    } catch (_) {
+      return false;
+    }
   }
 
   /// Get list of branches
@@ -139,8 +175,15 @@ class GitCommands {
 
   /// Checkout a branch
   Future<bool> checkout(String repoPath, String branch) async {
-    final output = await _execute('git checkout "$branch"', workDir: repoPath);
-    return output.isNotEmpty && !output.contains('error');
+    try {
+      final result = await Process.run(
+        'git', ['checkout', branch],
+        workingDirectory: repoPath,
+      );
+      return result.exitCode == 0;
+    } catch (_) {
+      return false;
+    }
   }
 
   /// Get current branch name

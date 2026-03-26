@@ -1,7 +1,8 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
 import '../editor/editor_provider.dart';
 import '../terminal/terminal_provider.dart';
 
@@ -45,29 +46,27 @@ class AiState {
   }
 }
 
-class AiNotifier extends StateNotifier<AiState> {
+class AiNotifier extends Notifier<AiState> {
   static const _apiKeyKey = 'openrouter_api_key';
   static const _apiUrl = 'https://openrouter.ai/api/v1/chat/completions';
   static const _model = 'meta-llama/llama-3.3-70b-instruct:free';
+  static const _storage = FlutterSecureStorage();
 
-  // References to other providers - will be set via ref
-  final Ref _ref;
-
-  AiNotifier(this._ref) : super(const AiState()) {
+  @override
+  AiState build() {
     _loadApiKey();
+    return const AiState();
   }
 
   Future<void> _loadApiKey() async {
-    final prefs = await SharedPreferences.getInstance();
-    final apiKey = prefs.getString(_apiKeyKey);
+    final apiKey = await _storage.read(key: _apiKeyKey);
     if (apiKey != null && apiKey.isNotEmpty) {
       state = state.copyWith(apiKey: apiKey);
     }
   }
 
   Future<void> saveApiKey(String apiKey) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_apiKeyKey, apiKey);
+    await _storage.write(key: _apiKeyKey, value: apiKey);
     state = state.copyWith(apiKey: apiKey);
   }
 
@@ -93,8 +92,8 @@ class AiNotifier extends StateNotifier<AiState> {
 
     try {
       // Build context from editor and terminal
-      final editorState = _ref.read(editorProvider);
-      final terminalState = _ref.read(terminalProvider);
+      final editorState = ref.read(editorProvider);
+      final terminalState = ref.read(terminalProvider);
 
       final systemPrompt = _buildSystemPrompt(
         editorState: editorState,
@@ -107,43 +106,77 @@ class AiNotifier extends StateNotifier<AiState> {
         {'role': 'user', 'content': content.trim()},
       ];
 
-      final response = await http.post(
-        Uri.parse(_apiUrl),
-        headers: {
+      final client = http.Client();
+      final request = http.Request('POST', Uri.parse(_apiUrl))
+        ..headers.addAll({
           'Content-Type': 'application/json',
           'Authorization': 'Bearer ${state.apiKey}',
           'HTTP-Referer': 'https://github.com/OlehHavrilko/VELOX',
           'X-Title': 'VELOX Mobile IDE',
-        },
-        body: jsonEncode({
+        })
+        ..body = jsonEncode({
           'model': _model,
           'messages': messages,
           'max_tokens': 2048,
           'temperature': 0.7,
-        }),
+          'stream': true,
+        });
+
+      final response = await client.send(request);
+
+      if (response.statusCode != 200) {
+        final body = await response.stream.bytesToString();
+        state = state.copyWith(
+          isLoading: false,
+          error: 'API Error: ${response.statusCode} - $body',
+        );
+        client.close();
+        return;
+      }
+
+      // Seed an empty assistant message; tokens will fill it in.
+      final streamStart = DateTime.now();
+      state = state.copyWith(
+        messages: [
+          ...state.messages,
+          ChatMessage(role: 'assistant', content: '', timestamp: streamStart),
+        ],
       );
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        final assistantContent =
-            data['choices'][0]['message']['content'] as String;
+      final contentBuffer = StringBuffer();
+      var lineBuffer = '';
 
-        final assistantMessage = ChatMessage(
-          role: 'assistant',
-          content: assistantContent,
-          timestamp: DateTime.now(),
-        );
-
-        state = state.copyWith(
-          messages: [...state.messages, assistantMessage],
-          isLoading: false,
-        );
-      } else {
-        state = state.copyWith(
-          isLoading: false,
-          error: 'API Error: ${response.statusCode} - ${response.body}',
-        );
+      await for (final chunk in response.stream.transform(utf8.decoder)) {
+        lineBuffer += chunk;
+        final parts = lineBuffer.split('\n');
+        lineBuffer = parts.removeLast(); // hold back any incomplete line
+        for (final line in parts) {
+          final trimmed = line.trim();
+          if (!trimmed.startsWith('data: ')) continue;
+          final data = trimmed.substring(6);
+          if (data == '[DONE]') break;
+          try {
+            final json = jsonDecode(data);
+            final delta =
+                json['choices'][0]['delta']['content'] as String? ?? '';
+            if (delta.isEmpty) continue;
+            contentBuffer.write(delta);
+            final updated = [...state.messages];
+            updated[updated.length - 1] = ChatMessage(
+              role: 'assistant',
+              content: contentBuffer.toString(),
+              timestamp: streamStart,
+            );
+            state = state.copyWith(messages: updated);
+          } catch (_) {
+            // skip malformed SSE chunks
+          }
+        }
       }
+
+      client.close();
+      state = state.copyWith(isLoading: false);
+      _processActionBlocks(contentBuffer.toString());
     } catch (e) {
       state = state.copyWith(
         isLoading: false,
@@ -191,14 +224,28 @@ class AiNotifier extends StateNotifier<AiState> {
     return buffer.toString();
   }
 
+  void _processActionBlocks(String content) {
+    final insertPattern =
+        RegExp(r'\[INSERT_CODE\](.*?)\[/INSERT_CODE\]', dotAll: true);
+    for (final match in insertPattern.allMatches(content)) {
+      insertCode(match.group(1)!.trim());
+    }
+
+    final runPattern =
+        RegExp(r'\[RUN_COMMAND\](.*?)\[/RUN_COMMAND\]', dotAll: true);
+    for (final match in runPattern.allMatches(content)) {
+      runCommand(match.group(1)!.trim());
+    }
+  }
+
   void insertCode(String code) {
-    // This will be handled by EditorScreen via JS channel
-    // For now, just log it
-    // TODO: Implement actual code insertion via platform channel
+    final controller = ref.read(editorControllerProvider);
+    if (controller == null) return;
+    controller.runJavaScript('insertAtCursor(${jsonEncode(code)})');
   }
 
   void runCommand(String command) {
-    _ref.read(terminalProvider.notifier).sendCommand(command);
+    ref.read(terminalProvider.notifier).sendCommand(command);
   }
 
   void clearError() {
@@ -210,6 +257,4 @@ class AiNotifier extends StateNotifier<AiState> {
   }
 }
 
-final aiProvider = StateNotifierProvider<AiNotifier, AiState>(
-  (ref) => AiNotifier(ref),
-);
+final aiProvider = NotifierProvider<AiNotifier, AiState>(AiNotifier.new);

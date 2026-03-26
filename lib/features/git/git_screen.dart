@@ -230,7 +230,7 @@ class _GitScreenState extends ConsumerState<GitScreen> with SingleTickerProvider
               height: 24,
               alignment: Alignment.center,
               decoration: BoxDecoration(
-                color: color.withOpacity(0.2),
+                color: color.withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(4),
               ),
               child: Text(
@@ -394,7 +394,7 @@ class _GitScreenState extends ConsumerState<GitScreen> with SingleTickerProvider
   }
 
   Widget _buildActionBar(GitState state) {
-    final hasChanges = state.stagedFiles.isNotEmpty;
+    final hasStagedChanges = state.stagedFiles.isNotEmpty;
 
     return Container(
       color: const Color(0xFF161B22),
@@ -403,7 +403,7 @@ class _GitScreenState extends ConsumerState<GitScreen> with SingleTickerProvider
         children: [
           Expanded(
             child: OutlinedButton.icon(
-              onPressed: () => ref.read(gitProvider.notifier).pull(),
+              onPressed: state.isLoading ? null : () => ref.read(gitProvider.notifier).pull(),
               icon: const Icon(Icons.download, size: 18),
               label: const Text('Pull'),
               style: OutlinedButton.styleFrom(
@@ -415,7 +415,7 @@ class _GitScreenState extends ConsumerState<GitScreen> with SingleTickerProvider
           const SizedBox(width: 8),
           Expanded(
             child: ElevatedButton.icon(
-              onPressed: hasChanges ? () => _showCommitDialog() : null,
+              onPressed: (hasStagedChanges && !state.isLoading) ? () => _showCommitDialog() : null,
               icon: const Icon(Icons.check, size: 18),
               label: const Text('Commit'),
               style: ElevatedButton.styleFrom(
@@ -428,7 +428,8 @@ class _GitScreenState extends ConsumerState<GitScreen> with SingleTickerProvider
           const SizedBox(width: 8),
           Expanded(
             child: OutlinedButton.icon(
-              onPressed: hasChanges ? () => ref.read(gitProvider.notifier).push() : null,
+              // Push is always available when a repo is open (push doesn't require staged changes)
+              onPressed: state.isLoading ? null : () => ref.read(gitProvider.notifier).push(),
               icon: const Icon(Icons.upload, size: 18),
               label: const Text('Push'),
               style: OutlinedButton.styleFrom(
@@ -536,6 +537,9 @@ class _GitScreenState extends ConsumerState<GitScreen> with SingleTickerProvider
       ),
     );
 
+    urlController.dispose();
+    pathController.dispose();
+
     if (result != null && result['url']!.isNotEmpty && result['path']!.isNotEmpty) {
       ref.read(gitProvider.notifier).cloneRepo(result['url']!, result['path']!);
     }
@@ -553,6 +557,7 @@ class _GitScreenState extends ConsumerState<GitScreen> with SingleTickerProvider
           controller: controller,
           style: const TextStyle(color: Colors.white),
           maxLines: 3,
+          autofocus: true,
           decoration: const InputDecoration(
             hintText: 'Commit message',
             hintStyle: TextStyle(color: Colors.white38),
@@ -572,6 +577,8 @@ class _GitScreenState extends ConsumerState<GitScreen> with SingleTickerProvider
         ],
       ),
     );
+
+    controller.dispose();
 
     if (result != null && result.trim().isNotEmpty) {
       await ref.read(gitProvider.notifier).commit(result);

@@ -1,4 +1,4 @@
-import 'dart:async' show unawaited;
+import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'pty_service.dart';
 
@@ -26,11 +26,19 @@ class TerminalState {
   }
 }
 
-class TerminalNotifier extends StateNotifier<TerminalState> {
-  final PtyService _ptyService;
+class TerminalNotifier extends Notifier<TerminalState> {
+  late PtyService _ptyService;
   StreamSubscription<String>? _outputSub;
 
-  TerminalNotifier(this._ptyService) : super(const TerminalState());
+  @override
+  TerminalState build() {
+    _ptyService = ref.watch(ptyServiceProvider);
+    ref.onDispose(() {
+      _outputSub?.cancel();
+      unawaited(_ptyService.kill());
+    });
+    return const TerminalState();
+  }
 
   Future<void> start() async {
     if (state.isRunning) return;
@@ -40,11 +48,10 @@ class TerminalNotifier extends StateNotifier<TerminalState> {
     // Subscribe to output stream and fill buffer
     _outputSub = _ptyService.outputStream.listen((text) {
       final lines = [...state.outputBuffer, text];
-      // Keep last 200 lines for AI context
       state = state.copyWith(
         isRunning: true,
-        outputBuffer: lines.length > 200
-            ? lines.sublist(lines.length - 200)
+        outputBuffer: lines.length > 500
+            ? lines.sublist(lines.length - 500)
             : lines,
       );
     });
@@ -66,16 +73,8 @@ class TerminalNotifier extends StateNotifier<TerminalState> {
   }
 
   Stream<String> get outputStream => _ptyService.outputStream;
-
-  @override
-  void dispose() {
-    unawaited(_ptyService.kill());
-    _outputSub?.cancel();
-    super.dispose();
-  }
 }
 
-final terminalProvider =
-    StateNotifierProvider<TerminalNotifier, TerminalState>((ref) {
-  return TerminalNotifier(ref.watch(ptyServiceProvider));
-});
+final terminalProvider = NotifierProvider<TerminalNotifier, TerminalState>(
+  TerminalNotifier.new,
+);

@@ -20,6 +20,12 @@ class _EditorWebViewState extends ConsumerState<EditorWebView> {
   void initState() {
     super.initState();
     _initWebView();
+    // Register controller after the first frame so Riverpod is ready
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        ref.read(editorControllerProvider.notifier).state = _controller;
+      }
+    });
   }
 
   @override
@@ -35,6 +41,7 @@ class _EditorWebViewState extends ConsumerState<EditorWebView> {
   @override
   void dispose() {
     _subscription?.close();
+    ref.read(editorControllerProvider.notifier).state = null;
     super.dispose();
   }
 

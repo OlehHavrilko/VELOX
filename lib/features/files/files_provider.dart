@@ -56,11 +56,19 @@ class FilesNotifier extends StateNotifier<FilesState> {
   }
 
   Future<void> _ensureStoragePermission() async {
-    if (Platform.isAndroid) {
-      final status = await Permission.manageExternalStorage.status;
-      if (!status.isGranted) {
-        await Permission.manageExternalStorage.request();
-      }
+    if (!Platform.isAndroid) return;
+
+    // Android 13+ (API 33) uses READ_MEDIA_* permissions instead of storage
+    // MANAGE_EXTERNAL_STORAGE is needed for full FS access (developer tool)
+    final status = await Permission.manageExternalStorage.status;
+    if (status.isGranted) return;
+
+    // On Android 11+ this shows the "Allow all files access" system page.
+    // The permission_handler plugin handles the intent automatically.
+    final result = await Permission.manageExternalStorage.request();
+    if (!result.isGranted) {
+      // Fallback: try scoped read permission for basic access
+      await Permission.storage.request();
     }
   }
 

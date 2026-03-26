@@ -8,6 +8,8 @@ class PtyService {
   Stream<String>? _outputStream;
 
   Stream<String> get outputStream {
+    // Always return the same broadcast stream instance.
+    // Reset it when the PTY is restarted via [start].
     _outputStream ??= _eventChannel
         .receiveBroadcastStream()
         .map((event) => event.toString());
@@ -15,11 +17,17 @@ class PtyService {
   }
 
   Future<void> start() async {
+    // Reset the cached stream so new listeners get fresh data after a restart.
+    _outputStream = null;
     await _methodChannel.invokeMethod('startPty');
   }
 
   Future<void> write(String input) async {
-    await _methodChannel.invokeMethod('write', {'input': input});
+    try {
+      await _methodChannel.invokeMethod('write', {'input': input});
+    } catch (_) {
+      // Ignore write errors when PTY is not running
+    }
   }
 
   Future<void> sendCommand(String command) async {
@@ -27,11 +35,16 @@ class PtyService {
   }
 
   Future<void> resize(int cols, int rows) async {
-    await _methodChannel.invokeMethod('resize', {'cols': cols, 'rows': rows});
+    try {
+      await _methodChannel.invokeMethod('resize', {'cols': cols, 'rows': rows});
+    } catch (_) {}
   }
 
   Future<void> kill() async {
-    await _methodChannel.invokeMethod('kill');
+    try {
+      await _methodChannel.invokeMethod('kill');
+    } catch (_) {}
+    _outputStream = null;
   }
 }
 

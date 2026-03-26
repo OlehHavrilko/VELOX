@@ -71,13 +71,17 @@ class _AiScreenState extends ConsumerState<AiScreen> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () {
+              controller.dispose();
+              Navigator.pop(context);
+            },
             child:
                 const Text('Cancel', style: TextStyle(color: Colors.white70)),
           ),
           TextButton(
             onPressed: () {
               ref.read(aiProvider.notifier).saveApiKey(controller.text.trim());
+              controller.dispose();
               Navigator.pop(context);
             },
             child:
@@ -85,7 +89,10 @@ class _AiScreenState extends ConsumerState<AiScreen> {
           ),
         ],
       ),
-    );
+    ).then((_) {
+      // Dispose in case dialog was dismissed via back button / barrier tap
+      try { controller.dispose(); } catch (_) {}
+    });
   }
 
   @override

@@ -40,9 +40,7 @@
 
   // Send input to Flutter
   term.onData(data => {
-    window.flutter_inappwebview
-      ? window.flutter_inappwebview.callHandler('onInput', data)
-      : window.VeloxChannel && window.VeloxChannel.postMessage(JSON.stringify({ type: 'input', data }));
+    window.VeloxChannel && window.VeloxChannel.postMessage(JSON.stringify({ type: 'input', data }));
   });
 
   // Receive output from Flutter
@@ -58,8 +56,16 @@
     term.resize(cols, rows);
   };
 
-  // Notify Flutter ready
-  window.VeloxChannel && window.VeloxChannel.postMessage(JSON.stringify({ type: 'ready' }));
+  // Notify Flutter that terminal is ready
+  // Retry loop guards against the rare case where the JS channel isn't
+  // fully wired by the time this inline script executes.
+  (function notifyReady(attempt) {
+    if (window.VeloxChannel) {
+      window.VeloxChannel.postMessage(JSON.stringify({ type: 'ready' }));
+    } else if (attempt < 20) {
+      setTimeout(() => notifyReady(attempt + 1), 50);
+    }
+  })(0);
 </script>
 </body>
 </html>
